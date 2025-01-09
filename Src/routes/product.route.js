@@ -82,7 +82,7 @@ router.post("/create", upload.single("image"), createPost);
  *             items:
  *               $ref: '#/components/schemas/Post'
  */
-router.get("/", getAllPosts);
+router.get("/all", getAllPosts);
 
 /**
  * @swagger
