@@ -1,13 +1,13 @@
-import ProductModel from "../models/product.models.js"; // Adjust the path based on your project structure
-import UserModel from "../models/user.models.js"; // Adjust the path based on your user schema
+import ProductModel from "../models/product.models.js";
+import UserModel from "../models/user.models.js";
 import fs from "fs";
 import { v2 as cloudinary } from "cloudinary";
 
-// Configure Cloudinary
+// Configure Cloudinary using environment variables
 cloudinary.config({
-  cloud_name: "dwuc4qz3n",
-  api_key: "237728971423496",
-  api_secret: "8Q6ZLV2ouehlYs67BTGq86l2R98",
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 // Helper function to upload images to Cloudinary
@@ -17,87 +17,67 @@ const uploadToCloudinary = async (filePath) => {
     fs.unlinkSync(filePath); // Remove the local file after upload
     return result.secure_url; // Return the uploaded image URL
   } catch (error) {
-    throw new Error("Cloudinary upload failed");
+    console.error("Cloudinary upload error:", error);
+    throw new Error("Failed to upload image to Cloudinary");
   }
 };
 
 // Create a new product
 export const createPost = async (req, res) => {
-    const { name, description, originalPrice, discount, tags, sizes, stock, colors, authorId } = req.body;
-  
-    if (!name || !description  || !stock || !authorId) {
-      return res.status(400).json({ message: "Missing required fields" });
+  const { name, description, originalPrice, discount, tags, sizes, stock, colors, authorId } = req.body;
+
+  if (!name || !description || !stock || !authorId) {
+    return res.status(400).json({ message: "Missing required fields: name, description, stock, authorId" });
+  }
+
+  try {
+    // Upload image if provided
+    let imageUrl = null;
+    if (req.file?.path) {
+      imageUrl = await uploadToCloudinary(req.file.path);
     }
-  
-    try {
-      // Upload image if provided
-      let imageUrl = null;
-      if (req.file?.path) {
-        imageUrl = await uploadToCloudinary(req.file.path);
-      }
-  
-      // Process tags and sizes as arrays
-      let tagsArray = [];
-      if (typeof tags === "string") {
-        tagsArray = tags.split(",").map((tag) => tag.trim());
-      } else if (Array.isArray(tags)) {
-        tagsArray = tags;
-      }
-  
-      let sizesArray = [];
-      if (typeof sizes === "string") {
-        sizesArray = sizes.split(",").map((size) => size.trim());
-      } else if (Array.isArray(sizes)) {
-        sizesArray = sizes;
-      }
 
+    // Process tags and sizes as arrays
+    const tagsArray = typeof tags === "string" ? tags.split(",").map((tag) => tag.trim()) : tags || [];
+    const sizesArray = typeof sizes === "string" ? sizes.split(",").map((size) => size.trim()) : sizes || [];
+    const colorsArray = typeof colors === "string" ? colors.split(",").map((color) => color.trim()) : colors || [];
 
-
-      let colorArray = [];
-      if (typeof colors === "string") {
-        colorArray = colors.split(",").map((color) => color.trim());
-      } else if (Array.isArray(colors)) {
-        colorArray = colors;
-      }
-  
-      // Validate author existence
-      const user = await UserModel.findById(authorId);
-      if (!user) {
-        return res.status(404).json({ message: "Author not found" });
-      }
-let price = originalPrice
-      if(originalPrice && discount){
-        price = originalPrice - (originalPrice * discount / 100);
-      }
-  
-      // Create and save the product
-      const newProduct = new ProductModel({
-        name,
-        description,
-        price,
-        originalPrice,
-        discount,
-        tags: tagsArray,
-        sizes: sizesArray,
-        stock,
-        colors:colorArray,
-        authorId,
-        images: imageUrl,
-      });
-  
-      await newProduct.save();
-      res.status(201).json({ message: "Product created successfully", product: newProduct });
-    } catch (error) {
-      console.error("Error creating product:", error);
-      res.status(500).json({ message: "Internal server error" });
+    // Validate author existence
+    const user = await UserModel.findById(authorId);
+    if (!user) {
+      return res.status(404).json({ message: "Author not found" });
     }
-  };
-  
+
+    // Calculate price after discount
+    const price = originalPrice && discount ? originalPrice - (originalPrice * discount) / 100 : originalPrice;
+
+    // Create and save the product
+    const newProduct = new ProductModel({
+      name,
+      description,
+      price,
+      originalPrice,
+      discount,
+      tags: tagsArray,
+      sizes: sizesArray,
+      stock,
+      colors: colorsArray,
+      authorId,
+      images: imageUrl,
+    });
+
+    await newProduct.save();
+    res.status(201).json({ message: "Product created successfully", product: newProduct });
+  } catch (error) {
+    console.error("Error creating product:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 // Fetch all products with pagination
 export const getAllPosts = async (req, res) => {
-  const page = Number(req.query.page) || 1;
-  const limit = Number(req.query.limit) || 10;
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(Math.max(1, Number(req.query.limit) || 10), 100); // Limit max to 100
 
   try {
     const products = await ProductModel.find()
