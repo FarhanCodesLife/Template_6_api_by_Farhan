@@ -1,175 +1,181 @@
-import productModels from "../models/product.models.js"; // Adjust the path based on your project structure
+import ProductModel from "../models/product.models.js"; // Adjust the path based on your project structure
 import UserModel from "../models/user.models.js"; // Adjust the path based on your user schema
 import fs from "fs";
 import { v2 as cloudinary } from "cloudinary";
 
-// Cloudinary configuration
+// Configure Cloudinary
 cloudinary.config({
-    cloud_name:"dwuc4qz3n" ,
-    api_key:"237728971423496" ,
-    api_secret: "8Q6ZLV2ouehlYs67BTGq86l2R98",
+  cloud_name: "dwuc4qz3n",
+  api_key: "237728971423496",
+  api_secret: "8Q6ZLV2ouehlYs67BTGq86l2R98",
 });
 
 // Helper function to upload images to Cloudinary
-const uploadImageToCloudinary = async (localpath) => {
+const uploadToCloudinary = async (filePath) => {
   try {
-    const uploadResult = await cloudinary.uploader.upload(localpath, {
-      resource_type: "auto", // Automatically detect file type
-    });
-    fs.unlinkSync(localpath); // Delete the local file after upload
-    return uploadResult.url; // Return the Cloudinary URL
+    const result = await cloudinary.uploader.upload(filePath, { resource_type: "image" });
+    fs.unlinkSync(filePath); // Remove the local file after upload
+    return result.secure_url; // Return the uploaded image URL
   } catch (error) {
-    console.error("Cloudinary upload error:", error);
-    return null;
+    throw new Error("Cloudinary upload failed");
   }
 };
 
-// Create a new post
+// Create a new product
 export const createPost = async (req, res) => {
-  const {
-    name,
-    description,
-    price,
-    orignalPrice,
-    discount,
-    tags,
-    sizes,
-    stock,
-    color,
-    autorId,
-  } = req.body;
-
-  if (!name || !description || !price || !stock || !autorId) {
-    return res.status(400).json({ message: "Required fields are missing" });
-  }
-
-//   if (!req.file || !req.file.path) {
-//     return res.status(400).json({ message: "No image file uploaded" });
-//   }
-
-  try {
-    // const imageUrl = await uploadImageToCloudinary(req.file.path);
-    // if (!imageUrl) {
-    //   return res.status(500).json({ message: "Image upload failed" });
-    // }
-
-    // Check if the user exists
-    const user = await UserModel.findById(autorId);
-    if (!user) {
-      return res.status(404).json({ message: "Author not found" });
+    const { name, description, originalPrice, discount, tags, sizes, stock, colors, authorId } = req.body;
+  
+    if (!name || !description  || !stock || !authorId) {
+      return res.status(400).json({ message: "Missing required fields" });
     }
+  
+    try {
+      // Upload image if provided
+      let imageUrl = null;
+      if (req.file?.path) {
+        imageUrl = await uploadToCloudinary(req.file.path);
+      }
+  
+      // Process tags and sizes as arrays
+      let tagsArray = [];
+      if (typeof tags === "string") {
+        tagsArray = tags.split(",").map((tag) => tag.trim());
+      } else if (Array.isArray(tags)) {
+        tagsArray = tags;
+      }
+  
+      let sizesArray = [];
+      if (typeof sizes === "string") {
+        sizesArray = sizes.split(",").map((size) => size.trim());
+      } else if (Array.isArray(sizes)) {
+        sizesArray = sizes;
+      }
 
-    // Create the post
-    const newPost = new productModels({
-      name,
-      description,
-      price,
-      orignalPrice,
-      discount,
-      tags,
-      sizes,
-      stock,
-      color,
-    //   images: imageUrl,
-      autorId,
-    });
 
-    await newPost.save();
-    res.status(201).json({ message: "Post created successfully", post: newPost });
-  } catch (error) {
-    console.error("Error creating post:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
 
-// Get all posts with pagination
+      let colorArray = [];
+      if (typeof colors === "string") {
+        colorArray = colors.split(",").map((color) => color.trim());
+      } else if (Array.isArray(colors)) {
+        colorArray = colors;
+      }
+  
+      // Validate author existence
+      const user = await UserModel.findById(authorId);
+      if (!user) {
+        return res.status(404).json({ message: "Author not found" });
+      }
+let price = originalPrice
+      if(originalPrice && discount){
+        price = originalPrice - (originalPrice * discount / 100);
+      }
+  
+      // Create and save the product
+      const newProduct = new ProductModel({
+        name,
+        description,
+        price,
+        originalPrice,
+        discount,
+        tags: tagsArray,
+        sizes: sizesArray,
+        stock,
+        colors:colorArray,
+        authorId,
+        images: imageUrl,
+      });
+  
+      await newProduct.save();
+      res.status(201).json({ message: "Product created successfully", product: newProduct });
+    } catch (error) {
+      console.error("Error creating product:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  };
+  
+
+// Fetch all products with pagination
 export const getAllPosts = async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 10;
 
   try {
-    const Products = await productModels.find()
+    const products = await ProductModel.find()
       .skip((page - 1) * limit)
       .limit(limit);
 
-    const totalproducts = await productModels.countDocuments();
+    const totalProducts = await ProductModel.countDocuments();
+
     res.status(200).json({
-      Products,
-      totalproducts,
+      products,
+      totalProducts,
       currentPage: page,
-      totalPages: Math.ceil(totalproducts / limit),
+      totalPages: Math.ceil(totalProducts / limit),
     });
   } catch (error) {
-    console.error("Error fetching product:", error);
+    console.error("Error fetching products:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// Get a post by ID
+// Fetch a single product by ID
 export const getPostById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const Product = await productModels.findById(id);
-    if (!Product) {
+    const product = await ProductModel.findById(id);
+    if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    res.status(200).json(Product);
+    res.status(200).json(product);
   } catch (error) {
-    console.error("Error fetching Product by ID:", error);
+    console.error("Error fetching product by ID:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// Update a post by ID
+// Update an existing product
 export const updatePost = async (req, res) => {
   const { id } = req.params;
-  const { name, description, price, orignalPrice, discount, tags, sizes, stock, color } = req.body;
+  const updates = req.body;
 
   try {
-    const product = await productModels.findById(id);
+    const product = await ProductModel.findById(id);
     if (!product) {
-      return res.status(404).json({ message: "product not found" });
+      return res.status(404).json({ message: "Product not found" });
     }
 
-    // Update the fields if provided
-    if (name) product.name = name;
-    if (description) product.description = description;
-    if (price) product.price = price;
-    if (orignalPrice) product.orignalPrice = orignalPrice;
-    if (discount) product.discount = discount;
-    if (tags) product.tags = tags;
-    if (sizes) product.sizes = sizes;
-    if (stock) product.stock = stock;
-    if (color) product.color = color;
-
-    // If a new image is uploaded, update it
-    if (req.file && req.file.path) {
-      const imageUrl = await uploadImageToCloudinary(req.file.path);
-      if (!imageUrl) {
-        return res.status(500).json({ message: "Image upload failed" });
-      }
-      product.images = imageUrl;
+    // If a new image is provided, update it
+    if (req.file?.path) {
+      const newImageUrl = await uploadToCloudinary(req.file.path);
+      updates.images = newImageUrl;
     }
 
+    if (updates.sizes) {
+      updates.sizes = Array.isArray(updates.sizes) ? updates.sizes : [updates.sizes]; // Ensure it's an array
+    }
+
+    Object.assign(product, updates);
     await product.save();
-    res.status(200).json({ message: "product updated successfully", product });
+
+    res.status(200).json({ message: "Product updated successfully", product });
   } catch (error) {
-    console.error("Error updating post:", error);
+    console.error("Error updating product:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// Delete a post by ID
+// Delete a product
 export const deletePost = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const product = await productModels.findByIdAndDelete(id);
+    const product = await ProductModel.findByIdAndDelete(id);
     if (!product) {
-      return res.status(404).json({ message: "product not found" });
+      return res.status(404).json({ message: "Product not found" });
     }
-    res.status(200).json({ message: "product deleted successfully" });
+
+    res.status(200).json({ message: "Product deleted successfully" });
   } catch (error) {
     console.error("Error deleting product:", error);
     res.status(500).json({ message: "Internal server error" });

@@ -13,8 +13,7 @@ const app = express()
 const port = process.env.PORT || 5000
 app.use(cors({
     origin:"*",
-    credentials:true
-}))
+    credentials:true}))
 app.use(cookieParser())
 app.use(express.json())
 
@@ -42,7 +41,7 @@ const swaggerOptions = {
       },
       servers: [
         {
-          url: 'https://backend-hackathon-nu.vercel.app/' // Automatically switch URLs
+          url: 'http://localhost:5000' // Automatically switch URLs
         },
       ],
     },
