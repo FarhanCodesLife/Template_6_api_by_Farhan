@@ -7,8 +7,6 @@ import swaggerJSDoc from "swagger-jsdoc";
 import connectDB from "./Src/db/index.js";
 import userRouter from "./Src/routes/user.route.js";
 import productRouter from "./Src/routes/product.route.js";
-import { bulkInsertProducts } from "./utils/bulkproductsadd.js";
-import { arrayofProducts } from "./utils/arrayofProducts.js";
 
 // Initialize environment variables
 dotenv.config();
@@ -17,8 +15,8 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors()); // Enable CORS
-app.use(express.json()); // Parse JSON payloads
+app.use(cors());
+app.use(express.json());
 
 // Routes
 app.use("/api/user", userRouter);
@@ -34,31 +32,33 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-// Swagger setup
-const swaggerOptions = {
-  definition: {
-    openapi: "3.0.0",
-    info: {
-      title: "API Documentation",
-      version: "1.0.0",
-      description: "API for managing users and products",
-      contact: {
-        name: "Muhammad Farhan",
-        email: "farhansmit0318@gmail.com",
-        phone: "03182127256",
+// Swagger setup (disable in production for Vercel)
+if (process.env.NODE_ENV !== "production") {
+  const swaggerOptions = {
+    definition: {
+      openapi: "3.0.0",
+      info: {
+        title: "API Documentation",
+        version: "1.0.0",
+        description: "API for managing users and products",
+        contact: {
+          name: "Muhammad Farhan",
+          email: "farhansmit0318@gmail.com",
+          phone: "03182127256",
+        },
       },
+      servers: [
+        {
+          url: process.env.BASE_URL || "http://localhost:3000",
+        },
+      ],
     },
-    servers: [
-      {
-        url: process.env.BASE_URL || "http://localhost:3000", // Dynamic base URL
-      },
-    ],
-  },
-  apis: ["./Src/routes/*.js"], // Path to API documentation
-};
+    apis: ["./Src/routes/*.js"],
+  };
 
-const swaggerDocs = swaggerJSDoc(swaggerOptions);
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+  const swaggerDocs = swaggerJSDoc(swaggerOptions);
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+}
 
 // Global Error Handling Middleware
 app.use((err, req, res, next) => {
@@ -69,12 +69,12 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Local Server for Development
+// Start Server in Local Environment
 if (process.env.NODE_ENV !== "production") {
-  const PORT = process.env.PORT || 3000; // Use port from env or default 3000
+  const PORT = process.env.PORT || 3000;
   app.listen(PORT, async () => {
     try {
-      await connectDB(); // Connect to MongoDB
+      await connectDB();
       console.log(`Server is running at http://localhost:${PORT}`);
     } catch (error) {
       console.error("Error connecting to the database:", error.message);
@@ -82,14 +82,11 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
-// Export the handler for Vercel
+// Export handler for Vercel
 export default async (req, res) => {
   try {
-    // Ensure MongoDB is connected for each request
-    await connectDB();
-
-    // Use Express to handle the request
-    app(req, res);
+    await connectDB(); // Ensure DB connection for each request
+    app(req, res); // Pass request to Express
   } catch (error) {
     console.error("Error handling request:", error);
     res.status(500).json({
