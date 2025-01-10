@@ -77,7 +77,7 @@ export const createPost = async (req, res) => {
 // Fetch all products with pagination
 export const getAllPosts = async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(Math.max(1, Number(req.query.limit) || 10), 100); // Limit max to 100
+  const limit = Math.min(Math.max(1, Number(req.query.limit) || 20), 100); // Limit max to 100
 
   try {
     const products = await ProductModel.find()
