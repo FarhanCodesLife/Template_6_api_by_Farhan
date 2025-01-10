@@ -39,7 +39,7 @@ app.get("/", (req, res) => {
 (async () => {
     try {
       await connectDB(); // Ensure MongoDB is connected
-      await bulkInsertProducts(arrayofProducts); // Insert the products
+    //   await bulkInsertProducts(arrayofProducts); // Insert the products
       console.log("Products bulk inserted successfully");
     } catch (error) {
       console.error("Error during bulk insertion:", error.message);
