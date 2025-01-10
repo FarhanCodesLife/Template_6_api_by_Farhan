@@ -5,9 +5,9 @@ import { v2 as cloudinary } from "cloudinary";
 
 // Configure Cloudinary using environment variables
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: "dwuc4qz3n",
+  api_key: "237728971423496",
+  api_secret:"8Q6ZLV2ouehlYs67BTGq86l2R98",
 });
 
 // Helper function to upload images to Cloudinary
