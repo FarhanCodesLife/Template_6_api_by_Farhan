@@ -16,7 +16,7 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors({ origin: process.env.CLIENT_URL || "*" })); // Use specific origin for security
+app.use(cors()); // Use specific origin for security
 // app.use(helmet()); // Uncomment if needed
 // app.use(cookieParser());
 app.use(express.json());
