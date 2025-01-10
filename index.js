@@ -7,7 +7,8 @@ import swaggerJSDoc from "swagger-jsdoc";
 import connectDB from "./Src/db/index.js";
 import userRouter from "./Src/routes/user.route.js";
 import productRouter from "./Src/routes/product.route.js";
-
+import { bulkInsertProducts } from "./utils/bulkproductsadd.js";
+import { arrayofProducts } from "./utils/arrayofProducts.js";
 // Initialize environment variables
 dotenv.config();
 
@@ -34,6 +35,17 @@ app.get("/", (req, res) => {
     res.send("Hello World!");
 });
 
+
+(async () => {
+    try {
+      await connectDB(); // Ensure MongoDB is connected
+      await bulkInsertProducts(arrayofProducts); // Insert the products
+      console.log("Products bulk inserted successfully");
+    } catch (error) {
+      console.error("Error during bulk insertion:", error.message);
+    }
+  })();
+  
 // Swagger setup
 const swaggerOptions = {
     definition: {
