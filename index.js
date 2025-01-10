@@ -2,8 +2,6 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import helmet from "helmet";
-import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 import swaggerJSDoc from "swagger-jsdoc";
 import connectDB from "./Src/db/index.js";
@@ -15,12 +13,11 @@ dotenv.config();
 
 // Initialize Express app
 const app = express();
-const port = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({ origin: process.env.CLIENT_URL || "*" })); // Use specific origin for security
-app.use(helmet()); // Security hardening
-app.use(cookieParser());
+// app.use(helmet()); // Uncomment if needed
+// app.use(cookieParser());
 app.use(express.json());
 
 // Routes
@@ -53,7 +50,7 @@ const swaggerOptions = {
         },
         servers: [
             {
-                url: process.env.BASE_URL || `http://localhost:${port}`, // Dynamic base URL
+                url: process.env.BASE_URL || "http://localhost:3000", // Dynamic base URL
             },
         ],
     },
@@ -72,13 +69,19 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Connect to MongoDB and start the server
-connectDB()
-    .then(() => {
-        app.listen(port, () => {
-            console.log(`Server is running on http://localhost:${port}`);
+// Export the handler for Vercel
+export default async (req, res) => {
+    try {
+        // Connect to MongoDB (called on every request)
+        await connectDB();
+
+        // Use Express to handle the request
+        app(req, res);
+    } catch (error) {
+        console.error("Error handling request:", error);
+        res.status(500).json({
+            error: "Internal server error",
+            details: error.message,
         });
-    })
-    .catch((error) => {
-        console.error("Error connecting to MongoDB:", error);
-    });
+    }
+};
